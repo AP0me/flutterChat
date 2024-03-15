@@ -68,7 +68,7 @@ TextField textField(MyHomePageState hPState) {
     controller: hPState.sendTextController,
     focusNode: hPState.sendTextFocusNode,
     onSubmitted: (value) {
-      //TODO: understand how sleeps stops both setState and
+      //TODO: understand how sleeps stops both setState and print.
       hPState.setState(() {
         addAMessageBox2ViewList(hPState, value);
         hPState.sendTextController.clear();
