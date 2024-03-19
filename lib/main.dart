@@ -15,6 +15,7 @@ abstract class Server {
   static String host = 'localhost';
   static int port = 3000;
 }
+String myName = 'root';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -44,19 +45,17 @@ void addAMessageBox2ViewList(MyHomePageState hPState, text, author) {
   print(hPState.messageBoxList);
 }
 
-dynamic postRequest(Uri uri, String body) async {
-  TextEditingController titleController =
-      TextEditingController(text: 'mytitle');
-  TextEditingController bodyController = TextEditingController(text: body);
+dynamic postRequest(Uri uri, String text) async {
   http.Response messages = await http.post(uri,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
-        "title": titleController.text,
-        "body": body,
-        "userId": 1,
+        "title": 'mytitle',
+        "body": {
+          "text": text,
+          "user": myName,
+        },
       }));
-  late var messagesBody = jsonDecode(messages.body);
-  return messagesBody;
+  return messages.body;
 }
 
 class MyHomePageState extends State<MyHomePage> {
@@ -82,7 +81,8 @@ class MyHomePageState extends State<MyHomePage> {
 
     late String messageText, messageAuther;
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
-      postRequest(helloUri, '').then((messagesBody) {
+      postRequest(helloUri, '').then((messagesBodyString) {
+        late var messagesBody = jsonDecode(messagesBodyString);
         setState(() {
           for (var i = 0; i < messagesBody.length; i++) {
             messageText = messagesBody[i]["text"] as String;
@@ -133,7 +133,7 @@ TextField textField(MyHomePageState hPState) {
     onSubmitted: (value) {
       hPState.setState(() {
         postRequest(helloUri, value);
-        addAMessageBox2ViewList(hPState, value, 'root');
+        addAMessageBox2ViewList(hPState, value, myName);
         hPState.sendTextController.clear();
         hPState.sendTextFocusNode.requestFocus();
       });
