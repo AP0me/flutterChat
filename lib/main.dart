@@ -1,12 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
+}
+
+abstract class Server {
+  static String scheme = 'http';
+  static String host = 'localhost';
+  static int port = 3000;
 }
 
 class MyApp extends StatelessWidget {
@@ -32,18 +39,29 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => MyHomePageState();
 }
 
-void addAMessageBox2ViewList(MyHomePageState hPState, value) {
-  if (hPState.messageBoxList.isNotEmpty) {
-    Text oldLastMesaageBox = hPState.messageBoxList
-        .removeAt(hPState.messageBoxList.length - 1) as Text;
-    hPState.messageBoxList.add(Text(oldLastMesaageBox.data as String));
-  }
-  hPState.messageBoxList.add(Text(value, key: hPState.gKey));
+void addAMessageBox2ViewList(MyHomePageState hPState, text, author) {
+  hPState.messageBoxList.insert(0, Text(author + ': ' + text));
+  print(hPState.messageBoxList);
+}
+
+dynamic postRequest(Uri uri, String body) async {
+  TextEditingController titleController =
+      TextEditingController(text: 'mytitle');
+  TextEditingController bodyController = TextEditingController(text: body);
+  http.Response messages = await http.post(uri,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "title": titleController.text,
+        "body": body,
+        "userId": 1,
+      }));
+  late var messagesBody = jsonDecode(messages.body);
+  return messagesBody;
 }
 
 class MyHomePageState extends State<MyHomePage> {
   List<Widget> messageBoxList = [];
-  final gKey = GlobalKey();
+  late String myName;
 
   TextEditingController sendTextController = TextEditingController();
   FocusNode sendTextFocusNode = FocusNode();
@@ -55,14 +73,24 @@ class MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    for (var i = 0; i < 80; i++) {
-      addAMessageBox2ViewList(this, "init_value$i");
-    }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      listViewScrollController.jumpTo(
-        listViewScrollController.position.maxScrollExtent,
-      );
-      print(listViewScrollController.position.maxScrollExtent);
+    var helloUri = Uri(
+      scheme: Server.scheme,
+      host: Server.host,
+      port: Server.port,
+      path: '/messages',
+    );
+
+    late String messageText, messageAuther;
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+      postRequest(helloUri, '').then((messagesBody) {
+        setState(() {
+          for (var i = 0; i < messagesBody.length; i++) {
+            messageText = messagesBody[i]["text"] as String;
+            messageAuther = messagesBody[i]["name"] as String;
+            addAMessageBox2ViewList(this, messageText, messageAuther);
+          }
+        });
+      });
     });
   }
 
@@ -80,6 +108,7 @@ class MyHomePageState extends State<MyHomePage> {
               child: ListView(
                 controller: listViewScrollController,
                 physics: listViewScrollPhysics,
+                reverse: true,
                 children: [...messageBoxList],
               ),
             ),
@@ -92,19 +121,22 @@ class MyHomePageState extends State<MyHomePage> {
 }
 
 TextField textField(MyHomePageState hPState) {
+  var helloUri = Uri(
+    scheme: Server.scheme,
+    host: Server.host,
+    port: Server.port,
+    path: '/add_message',
+  );
   return TextField(
     controller: hPState.sendTextController,
     focusNode: hPState.sendTextFocusNode,
     onSubmitted: (value) {
-      //TODO: understand how sleeps stops both setState and print.
       hPState.setState(() {
-        addAMessageBox2ViewList(hPState, value);
+        postRequest(helloUri, value);
+        addAMessageBox2ViewList(hPState, value, 'root');
         hPState.sendTextController.clear();
         hPState.sendTextFocusNode.requestFocus();
-        ScrollHomePageListView.scroll(hPState);
       });
-      sleep(Durations.extralong4);
-      print(hPState.listViewScrollController.position.maxScrollExtent);
     },
     decoration: const InputDecoration(
       hintTextDirection: TextDirection.ltr,
@@ -113,26 +145,4 @@ TextField textField(MyHomePageState hPState) {
       fillColor: Color.fromARGB(255, 255, 255, 255),
     ),
   );
-}
-
-abstract class ScrollHomePageListView {
-  static void scroll(MyHomePageState hPState) {
-    double lastMessageBoxHeight = 0;
-    if (hPState.messageBoxList.length > 1) {
-      if (hPState.gKey.currentContext?.size?.height is double) {
-        lastMessageBoxHeight =
-            hPState.gKey.currentContext?.size?.height as double;
-      } else {
-        throw ErrorDescription("Scroll's max extent is not correct");
-      }
-    }
-    if (hPState.listViewScrollController.position.maxScrollExtent > 0) {
-      hPState.listViewScrollController.animateTo(
-        hPState.listViewScrollController.position.maxScrollExtent +
-            lastMessageBoxHeight,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
 }
