@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +16,18 @@ abstract class Server {
   static String scheme = 'http';
   static String host = 'localhost';
   static int port = 3000;
+
+  static String websocketString = 'ws://localhost:8080';
+
+  static Future<WebSocketChannel> webSocketConnect(
+      String socketURiString) async {
+    final channel = WebSocketChannel.connect(
+      Uri.parse(websocketString),
+    );
+    return channel;
+  }
 }
+
 String myName = 'root';
 
 class MyApp extends StatelessWidget {
@@ -40,27 +53,49 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => MyHomePageState();
 }
 
-void addAMessageBox2ViewList(MyHomePageState hPState, text, author) {
-  hPState.messageBoxList.insert(0, Text(author + ': ' + text));
-  print(hPState.messageBoxList);
+void addAMessageBox2ViewList(
+    MyHomePageState hPState, String text, String author) {
+  hPState.messageBoxList.insert(0, Text('$author: $text'));
 }
 
 dynamic postRequest(Uri uri, String text) async {
-  http.Response messages = await http.post(uri,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "title": 'mytitle',
-        "body": {
-          "text": text,
-          "user": myName,
-        },
-      }));
+  http.Response messages = await http.post(
+    uri,
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "text": text,
+      "user": myName,
+    }),
+  );
   return messages.body;
+}
+
+class MessageObject {
+  late String messageText;
+  late String messageAuthor;
+  MessageObject(this.messageText, this.messageAuthor);
+  Map<String, dynamic> toJson() {
+    return {
+      'text': messageText,
+      'name': messageAuthor,
+    };
+  }
+}
+
+class MessageObjectPackage {
+  List<MessageObject> messages = [];
+  String path;
+  MessageObjectPackage(this.path);
+  Map<String, dynamic> toJson() {
+    return {
+      'messages': messages.map((message) => message.toJson()).toList(),
+      'path': path,
+    };
+  }
 }
 
 class MyHomePageState extends State<MyHomePage> {
   List<Widget> messageBoxList = [];
-  late String myName;
 
   TextEditingController sendTextController = TextEditingController();
   FocusNode sendTextFocusNode = FocusNode();
@@ -69,28 +104,53 @@ class MyHomePageState extends State<MyHomePage> {
   final ScrollController listViewScrollController = ScrollController();
   final ScrollPhysics listViewScrollPhysics = const BouncingScrollPhysics();
 
+  late WebSocketChannel channel;
+
   @override
   void initState() {
     super.initState();
-    var helloUri = Uri(
-      scheme: Server.scheme,
-      host: Server.host,
-      port: Server.port,
-      path: '/messages',
-    );
-
-    late String messageText, messageAuther;
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
-      postRequest(helloUri, '').then((messagesBodyString) {
-        late var messagesBody = jsonDecode(messagesBodyString);
-        setState(() {
-          for (var i = 0; i < messagesBody.length; i++) {
-            messageText = messagesBody[i]["text"] as String;
-            messageAuther = messagesBody[i]["name"] as String;
-            addAMessageBox2ViewList(this, messageText, messageAuther);
-          }
-        });
+      channel = await Server.webSocketConnect(Server.websocketString);
+      channel.ready.then((value) {
+        listenTo(channel);
+        MessageObjectPackage chatMessages =
+            MessageObjectPackage('/getMessages');
+        chatMessages.messages.add(MessageObject('', myName));
+        channel.sink.add(jsonEncode(chatMessages.toJson()));
       });
+    });
+  }
+
+  void handleGetMessages(List<dynamic> messages, String path) {
+    late MessageObject message;
+    setState(() {
+      for (int i = 0; i < messages.length; i++) {
+        message = MessageObject(messages[i]['text'], messages[i]['name']);
+        addAMessageBox2ViewList(
+            this, message.messageText, message.messageAuthor);
+      }
+    });
+  }
+
+  void listenTo(WebSocketChannel channel) {
+    channel.stream.listen((messagesBodyString) {
+      var messagesBody = jsonDecode(messagesBodyString);
+      String path = messagesBody['path'];
+      List<dynamic> messages = messagesBody['messages'];
+      switch (path) {
+        case '/getMessages':
+          handleGetMessages(messages, path);
+          break;
+        case '/addMessage':
+          print(messagesBody);
+          addAMessageBox2ViewList(this, messages[0]['text'], messages[0]['name']);
+          break;
+        default:
+      }
+    }, onError: (error) {
+      print('Error occurred: $error');
+    }, onDone: () {
+      print('WebSocket connection closed');
     });
   }
 
@@ -127,13 +187,15 @@ TextField textField(MyHomePageState hPState) {
     port: Server.port,
     path: '/add_message',
   );
+
   return TextField(
     controller: hPState.sendTextController,
     focusNode: hPState.sendTextFocusNode,
     onSubmitted: (value) {
       hPState.setState(() {
-        postRequest(helloUri, value);
-        addAMessageBox2ViewList(hPState, value, myName);
+        MessageObjectPackage newMessage = MessageObjectPackage('/addMessage');
+        newMessage.messages.add(MessageObject(value, myName));
+        hPState.channel.sink.add(jsonEncode(newMessage.toJson()));
         hPState.sendTextController.clear();
         hPState.sendTextFocusNode.requestFocus();
       });
