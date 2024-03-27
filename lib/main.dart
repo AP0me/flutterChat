@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/status.dart' as status;
 
 void main() {
   runApp(const MyApp());
@@ -30,7 +28,6 @@ abstract class Server {
 }
 
 String myName = 'root';
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -58,17 +55,6 @@ void addAMessageBox2ViewList(MyHomePageState hPState,String text,String author){
   hPState.messageBoxList.insert(0, Text('$author: $text'));
 }
 
-dynamic postRequest(Uri uri, String text) async {
-  http.Response messages = await http.post(
-    uri,
-    headers: {"Content-Type": "application/json"},
-    body: jsonEncode({
-      "text": text,
-      "user": myName,
-    }),
-  );
-  return messages.body;
-}
 
 class MessageObject {
   late String messageText;
