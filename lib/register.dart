@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'main.dart';
+import 'dart:convert';
 
 class RegistrationPage extends StatelessWidget {
-  const RegistrationPage({super.key});
+  final MyHomePageState hpState;
+  const RegistrationPage({super.key, required this.hpState});
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController usernameController = TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController emailController = TextEditingController();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Register'),
@@ -13,25 +19,33 @@ class RegistrationPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: usernameController,
+              decoration: const InputDecoration(
                 labelText: 'Username',
               ),
             ),
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
                 labelText: 'Email',
               ),
             ),
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: passwordController,
+              decoration: const InputDecoration(
                 labelText: 'Password',
               ),
               obscureText: true,
             ),
             ElevatedButton(
               onPressed: () {
-                // Handle registration logic
+                String username = usernameController.text;
+                String password = passwordController.text;
+                String email = emailController.text;
+                MessageObjectPackage registerMessagePack = MessageObjectPackage('/register');
+                registerMessagePack.messages.add(MessageObject(username, email));
+                hpState.channel.sink.add(jsonEncode(registerMessagePack.toJson()));
               },
               child: const Text('Register'),
             ),
