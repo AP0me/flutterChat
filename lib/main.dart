@@ -29,7 +29,6 @@ abstract class Server {
   }
 }
 
-String myName = 'root';
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -53,10 +52,10 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => MyHomePageState();
 }
 
-void addAMessageBox2ViewList(MyHomePageState hPState,String text,String author){
+void addAMessageBox2ViewList(
+    MyHomePageState hPState, String text, String author) {
   hPState.messageBoxList.insert(0, Text('$author: $text'));
 }
-
 
 class MessageObject {
   late String messageText;
@@ -84,6 +83,7 @@ class MessageObjectPackage {
 
 class MyHomePageState extends State<MyHomePage> {
   List<Widget> messageBoxList = [];
+  String myName = 'root';
 
   TextEditingController sendTextController = TextEditingController();
   FocusNode sendTextFocusNode = FocusNode();
@@ -137,7 +137,7 @@ class MyHomePageState extends State<MyHomePage> {
           print(messagesBody);
           setState(() {
             addAMessageBox2ViewList(
-              this, messages[0]['text'], messages[0]['name']);
+                this, messages[0]['text'], messages[0]['name']);
           });
           break;
         default:
@@ -149,59 +149,61 @@ class MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  List<Widget> navigationList(context){
+    return [
+      ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => LoginPage(hpState: this)),
+          );
+        },
+        child: const Text('Login'),
+      ),
+      ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const RegistrationPage()),
+          );
+        },
+        child: const Text('Register'),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                controller: listViewScrollController,
-                physics: listViewScrollPhysics,
-                reverse: true,
-                children: [...messageBoxList],
-              ),
+      body: Column(
+        children: [
+          Row(
+            children: navigationList(context),
+          ),
+          Expanded(
+            child: ListView(
+              controller: listViewScrollController,
+              physics: listViewScrollPhysics,
+              reverse: true,
+              children: [...messageBoxList],
             ),
-            textField(this),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              },
-              child: const Text('Login'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RegistrationPage()),
-                );
-              },
-              child: const Text('Register'),
-            ),
-          ],
-        ),
+          ),
+          // Input field at the bottom
+          textField(this),
+        ],
       ),
     );
   }
 }
 
 TextField textField(MyHomePageState hPState) {
-
   return TextField(
     controller: hPState.sendTextController,
     focusNode: hPState.sendTextFocusNode,
     onSubmitted: (value) {
       hPState.setState(() {
         MessageObjectPackage newMessage = MessageObjectPackage('/addMessage');
-        newMessage.messages.add(MessageObject(value, myName));
+        newMessage.messages.add(MessageObject(value, hPState.myName));
         hPState.channel.sink.add(jsonEncode(newMessage.toJson()));
         hPState.sendTextController.clear();
         hPState.sendTextFocusNode.requestFocus();
@@ -215,3 +217,4 @@ TextField textField(MyHomePageState hPState) {
     ),
   );
 }
+

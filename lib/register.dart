@@ -13,7 +13,6 @@ class RegistrationPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            // Add your registration fields and button here
             const TextField(
               decoration: InputDecoration(
                 labelText: 'Username',
