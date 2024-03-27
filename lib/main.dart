@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
+import './login.dart';
+import './register.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +18,7 @@ abstract class Server {
   static String host = 'localhost';
   static int port = 3000;
 
-  static String websocketString = 'ws://2a24-213-172-91-122.ngrok-free.app';
+  static String websocketString = 'ws://f82e-213-172-91-122.ngrok-free.app';
 
   static Future<WebSocketChannel> webSocketConnect(
       String socketURiString) async {
@@ -165,7 +167,25 @@ class MyHomePageState extends State<MyHomePage> {
                 children: [...messageBoxList],
               ),
             ),
-            textField(this)
+            textField(this),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                );
+              },
+              child: const Text('Login'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RegistrationPage()),
+                );
+              },
+              child: const Text('Register'),
+            ),
           ],
         ),
       ),
