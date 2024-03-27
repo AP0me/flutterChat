@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -17,7 +18,7 @@ abstract class Server {
   static String host = 'localhost';
   static int port = 3000;
 
-  static String websocketString = 'ws://localhost:8080';
+  static String websocketString = 'ws://2a24-213-172-91-122.ngrok-free.app';
 
   static Future<WebSocketChannel> webSocketConnect(
       String socketURiString) async {
@@ -53,8 +54,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => MyHomePageState();
 }
 
-void addAMessageBox2ViewList(
-    MyHomePageState hPState, String text, String author) {
+void addAMessageBox2ViewList(MyHomePageState hPState,String text,String author){
   hPState.messageBoxList.insert(0, Text('$author: $text'));
 }
 
@@ -105,18 +105,15 @@ class MyHomePageState extends State<MyHomePage> {
   final ScrollPhysics listViewScrollPhysics = const BouncingScrollPhysics();
 
   late WebSocketChannel channel;
-
   @override
   void initState() {
     super.initState();
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
       channel = await Server.webSocketConnect(Server.websocketString);
       channel.ready.then((value) {
-        listenTo(channel);
-        MessageObjectPackage chatMessages =
-            MessageObjectPackage('/getMessages');
-        chatMessages.messages.add(MessageObject('', myName));
-        channel.sink.add(jsonEncode(chatMessages.toJson()));
+        getAllMessages(channel);
+      }).onError((error, stackTrace) async {
+        print('Error occurred: $error; Trying to reconnect...');
       });
     });
   }
@@ -132,6 +129,13 @@ class MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void getAllMessages(channel) {
+    listenTo(channel);
+    MessageObjectPackage chatMessages = MessageObjectPackage('/getMessages');
+    chatMessages.messages.add(MessageObject('', myName));
+    channel.sink.add(jsonEncode(chatMessages.toJson()));
+  }
+
   void listenTo(WebSocketChannel channel) {
     channel.stream.listen((messagesBodyString) {
       var messagesBody = jsonDecode(messagesBodyString);
@@ -143,14 +147,17 @@ class MyHomePageState extends State<MyHomePage> {
           break;
         case '/addMessage':
           print(messagesBody);
-          addAMessageBox2ViewList(this, messages[0]['text'], messages[0]['name']);
+          setState(() {
+            addAMessageBox2ViewList(
+              this, messages[0]['text'], messages[0]['name']);
+          });
           break;
         default:
       }
-    }, onError: (error) {
+    }, onError: (error) async {
       print('Error occurred: $error');
-    }, onDone: () {
-      print('WebSocket connection closed');
+    }, onDone: () async {
+      print('WebSocket connection closed.');
     });
   }
 
@@ -181,12 +188,6 @@ class MyHomePageState extends State<MyHomePage> {
 }
 
 TextField textField(MyHomePageState hPState) {
-  var helloUri = Uri(
-    scheme: Server.scheme,
-    host: Server.host,
-    port: Server.port,
-    path: '/add_message',
-  );
 
   return TextField(
     controller: hPState.sendTextController,

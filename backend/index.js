@@ -1,11 +1,6 @@
-const express = require('express');
 const mysql = require('mysql');
-const WebSocket = require('ws'); // Import the ws library
-const app = express();
-const port = 3000;
-
-// Middleware to parse JSON bodies
-app.use(express.json());
+const WebSocket = require('ws');
+const port = 8080;
 
 // Set up database connection (XAMPP)
 const db = mysql.createConnection({
@@ -27,7 +22,7 @@ function messagePackGen(messages, path){
   return '{ "messages": '+JSON.stringify(messages)+', "path": '+JSON.stringify(path)+' }'
 }
 
-const wss = new WebSocket.Server({ port: 8080 }); 
+const wss = new WebSocket.Server({ port: port }); 
 function broadcastMessage(message) {
   wss.clients.forEach(function each(client) {
     if (client.readyState === WebSocket.OPEN) {
@@ -71,6 +66,3 @@ wss.on('connection', function connection(ws) {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
