@@ -57,6 +57,17 @@ wss.on('connection', function connection(ws) {
           broadcastMessage(messagePackGen([{"text": message.text, "name": message.name}], messagePack.path));
           console.log('Message added successfully');
         });
+      case '/register':
+        message = messages[0];
+        // let password = message.password;
+        console.log(message.username, message.password);
+        db.query("INSERT INTO `users`(`name`) VALUES (?);", [message.username], (err, results) => {
+          if (err) {
+            console.error('Error inserting message: ' + err);
+            return;
+          }
+          console.log('User registered successfully');
+        });
       default:
         break;
     }
