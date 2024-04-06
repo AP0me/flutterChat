@@ -71,7 +71,7 @@ wss.on('connection', function connection(ws) {
         break;
       case '/askSalt':
         message = messages[0];
-        // let username = message.text
+        // let username = message.text;
         console.log(message.text);
         db.query("SELECT `users`.`salt` FROM `users` WHERE `users`.`name`=?;", [message.text], (err, results) => {
           if (err) {
@@ -101,6 +101,6 @@ wss.on('connection', function connection(ws) {
   });
   ws.on('close', function close() {
     console.log('Client disconnected');
-  });
+  }); 
 });
 
