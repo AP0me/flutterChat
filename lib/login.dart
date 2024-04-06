@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:crypt/crypt.dart';
 import 'package:flutter/material.dart';
 import './main.dart';
 
@@ -8,14 +7,15 @@ class LoginPage extends StatelessWidget {
   const LoginPage({super.key, required this.hpState});
 
   void login(String password, String username) {
-    String passwordHash = Crypt.sha256(password, salt: hpState.salt).hash.toString();
+    String passwordHash = hpState.passwordHasher(
+      password,
+      hpState.client_salt,
+    );
     MessageObjectPackage login = MessageObjectPackage('/login', hpState.myName);
     login.messages.add(MessageObject(
         jsonEncode({"username": username, "password": passwordHash})));
+    print(passwordHash);
     hpState.channel.sink.add(jsonEncode(login.toJson()));
-    hpState.setState(() {
-      hpState.myName = username;
-    });
   }
 
   @override
@@ -53,7 +53,7 @@ class LoginPage extends StatelessWidget {
                 MessageObjectPackage askSalt =
                     MessageObjectPackage('/askSalt', hpState.myName);
                 askSalt.messages.add(MessageObject(hpState.username));
-                hpState.channel.sink.add(jsonEncode(askSalt.toJson()));
+                hpState.channel.sink.add((jsonEncode(askSalt.toJson())));
                 // login(password, username); this is called on main.dart
                 // as result of hpState.channel.sink.add(jsonEncode(askSalt.toJson()));
               },
