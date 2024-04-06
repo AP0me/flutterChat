@@ -9,8 +9,8 @@ class UserObject extends MessageObject {
   late String username;
   late String email;
   late String password;
-  late String salt;
-  UserObject(this.username, this.email, this.password, this.salt) : super('');
+  late String client_salt;
+  UserObject(this.username, this.email, this.password, this.client_salt) : super('');
 
   @override
   Map<String, dynamic> toJson() {
@@ -18,7 +18,7 @@ class UserObject extends MessageObject {
       'username': username,
       'email':    email,
       'password': password,
-      'salt':     salt,
+      'client_salt': client_salt,
     };
   }
 }
@@ -71,7 +71,7 @@ class RegistrationPage extends StatelessWidget {
                 String password = passwordController.text;
                 String email = emailController.text;
                 String salt = generateSalt(16);
-                password = Crypt.sha256(password, salt: salt, rounds: 20).hash.toString();
+                password = hpState.passwordHasher(password, salt);
                 MessageObjectPackage registerMessagePack = MessageObjectPackage('/register', hpState.myName);
                 registerMessagePack.messages.add(UserObject(username, email, password, salt));
                 hpState.channel.sink.add(jsonEncode(registerMessagePack.toJson()));

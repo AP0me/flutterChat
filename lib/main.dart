@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:crypt/crypt.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import './login.dart';
 import './register.dart';
@@ -17,7 +18,7 @@ abstract class Server {
   static String host = 'localhost';
   static int port = 3000;
 
-  static String websocketString = 'ws://7a95-213-172-91-122.ngrok-free.app';
+  static String websocketString = 'ws://038f-213-172-91-122.ngrok-free.app';
 
   static Future<WebSocketChannel> webSocketConnect(
       String socketURiString) async {
@@ -80,10 +81,20 @@ class MessageObjectPackage {
   }
 }
 
+class ChatMessage {
+  late String messageText;
+  late String author;
+  ChatMessage(this.messageText, this.author);
+  Map<String, dynamic> toJson() {
+    return {'text': messageText, 'author': author};
+  }
+}
+
 class MyHomePageState extends State<MyHomePage> {
   List<Widget> messageBoxList = [];
   String myName = 'guest';
-  late String salt;
+  String sessionID = 'guest';
+  late String client_salt;
   late String username;
   late String password;
   late LoginPage lpState;
@@ -110,13 +121,17 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   void handleGetMessages(List<dynamic> messages, String path, String author) {
-    late MessageObject message;
+    late ChatMessage message;
     setState(() {
       for (int i = 0; i < messages.length; i++) {
-        message = MessageObject(messages[i]['text']);
-        addAMessageBox2ViewList(this, message.messageText, author);
+        message = ChatMessage(messages[i]['text'], messages[i]['name']);
+        addAMessageBox2ViewList(this, message.messageText, message.author);
       }
     });
+  }
+
+  String passwordHasher(String password, String clientSalt) {
+    return Crypt.sha256(password, salt: clientSalt, rounds: 20).hash.toString();
   }
 
   void getAllMessages(channel) {
@@ -131,22 +146,30 @@ class MyHomePageState extends State<MyHomePage> {
     channel.stream.listen((messagesBodyString) {
       var messagesBody = jsonDecode(messagesBodyString);
       String path = messagesBody['path'];
+      print(messagesBody);
       List<dynamic> messages = messagesBody['messages'];
       switch (path) {
         case '/getMessages':
           handleGetMessages(messages, path, messagesBody['messageAuthor']);
           break;
         case '/addMessage':
-          print(messagesBody);
           setState(() {
             addAMessageBox2ViewList(
                 this, messages[0]['text'], messagesBody['messageAuthor']);
           });
           break;
         case '/askSalt':
-          print(messagesBody);
-          salt = messages[0]['salt'];
+          client_salt = messages[0]['client_salt'];
           lpState.login(password, username);
+          break;
+        case '/login':
+          int count = messages[0]['count'];
+          sessionID = messages[0]['session_id'];
+          if (count == 1) {
+            setState(() {
+              myName = username;
+            });
+          }
           break;
         default:
       }
@@ -233,7 +256,7 @@ TextField textField(MyHomePageState hPState) {
       hPState.setState(() {
         MessageObjectPackage newMessage =
             MessageObjectPackage('/addMessage', hPState.myName);
-        newMessage.messages.add(MessageObject(value));
+        newMessage.messages.add(MessageObject(jsonEncode({"value": value, "sessionID": hPState.sessionID})));
         hPState.channel.sink.add(jsonEncode(newMessage.toJson()));
         hPState.sendTextController.clear();
         hPState.sendTextFocusNode.requestFocus();
